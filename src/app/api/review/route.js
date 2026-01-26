@@ -1,4 +1,5 @@
 
+
 import clientPromise from "@/lib/mongodb";
 import { NextResponse } from "next/server";
 
@@ -50,7 +51,7 @@ export async function POST(req) {
     const avgRating =
       (behavior + quality + communication + timeManagement) / 4;
 
-    const client = await clientPromise;
+    const client = await clientPromise ;
     const db = client.db("designerReviewDB");
 
     await db.collection("reviews").insertOne({

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { auth } from "lib/auth";
+import { auth } from "@/lib/auth";
+
 
 export default function Navbar() {
   const [user, setUser] = useState(null);

@@ -3,7 +3,8 @@ import { useState } from "react";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 
 import { useRouter } from "next/navigation";
-import { auth } from "lib/auth";
+import { auth } from "@/lib/auth";
+
 
 export default function RegisterPage() {
   const router = useRouter();

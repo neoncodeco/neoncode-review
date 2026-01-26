@@ -1,5 +1,4 @@
-import ReviewForm from "@/components/home";
-import Image from "next/image";
+import ReviewForm from "@/components/ReviewFrom";
 
 export default function Home() {
   return (

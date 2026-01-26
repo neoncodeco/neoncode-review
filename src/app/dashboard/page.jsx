@@ -5,12 +5,28 @@ export default function DashboardPage() {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch("/api/review", { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => setReviews(data))
-      .finally(() => setLoading(false));
-  }, []);
+ useEffect(() => {
+  const loadReviews = async () => {
+    try {
+      const res = await fetch("/api/review", { cache: "no-store" });
+
+      if (!res.ok) {
+        throw new Error("API failed");
+      }
+
+      const data = await res.json();
+      setReviews(data);
+    } catch (err) {
+      console.error("Dashboard fetch error:", err);
+      setReviews([]); // fallback
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadReviews();
+}, []);
+
 
   if (loading) {
     return (

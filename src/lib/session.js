@@ -7,10 +7,12 @@ const COOKIE = "nc_session";
 const MAX_AGE = 60 * 60 * 24 * 7; // 7 days
 
 function secretKey() {
-  const secret =
-    process.env.AUTH_SECRET ||
-    process.env.ADMIN_MASTER_KEY ||
-    "neoncode-dev-secret-change-me";
+  const secret = process.env.AUTH_SECRET?.trim();
+  if (!secret || secret.length < 32) {
+    throw new Error(
+      "AUTH_SECRET missing or too short in .env.local (use 32+ random chars)"
+    );
+  }
   return new TextEncoder().encode(secret);
 }
 
@@ -55,26 +57,34 @@ export async function verifySessionToken(token) {
   }
 }
 
-export function sessionCookieOptions(token) {
+function cookieBase() {
+  // Secure cookies on HTTPS / production; localhost stays http-friendly
+  const secure =
+    process.env.NODE_ENV === "production" ||
+    process.env.AUTH_COOKIE_SECURE === "true";
+
   return {
-    name: COOKIE,
-    value: token,
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure,
     path: "/",
+  };
+}
+
+export function sessionCookieOptions(token) {
+  return {
+    ...cookieBase(),
+    name: COOKIE,
+    value: token,
     maxAge: MAX_AGE,
   };
 }
 
 export function clearSessionCookieOptions() {
   return {
+    ...cookieBase(),
     name: COOKIE,
     value: "",
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
     maxAge: 0,
   };
 }

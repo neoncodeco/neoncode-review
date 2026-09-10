@@ -10,6 +10,16 @@ const emptyForm = {
   image: "",
 };
 
+function initials(name) {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
 export default function TeamManager() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -118,18 +128,20 @@ export default function TeamManager() {
     }
   };
 
+  const byRole = DESIGNATION_OPTIONS.map((role) => ({
+    role,
+    list: members.filter((m) => m.designation === role),
+  })).filter((g) => g.list.length > 0);
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-[var(--brand-dark)]">
-          Team members
+          Team profiles
         </h2>
         <p className="mt-1 text-sm text-zinc-500">
-          Add / edit name, designation &amp; photo (ImageBB). These appear on
-          the public review form.
-        </p>
-        <p className="mt-1 text-xs text-zinc-400">
-          Roles: Designer, Sales Executive, Project Manager.
+          Profile photo, name &amp; role — same cards clients see on the review
+          form. Upload via ImageBB or paste a URL.
         </p>
       </div>
 
@@ -139,7 +151,7 @@ export default function TeamManager() {
       >
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-zinc-800">
-            {form._id ? "Edit member" : "Add member"}
+            {form._id ? "Edit profile" : "Add profile"}
           </h3>
           {form._id && (
             <button
@@ -188,10 +200,10 @@ export default function TeamManager() {
 
         <div>
           <label className="mb-1.5 block text-xs font-medium text-zinc-600">
-            Profile image (ImageBB)
+            Profile photo
           </label>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-[var(--brand-dark)] ring-1 ring-black/5">
+            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-[var(--brand-dark)] ring-1 ring-black/5">
               {form.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -200,8 +212,8 @@ export default function TeamManager() {
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <span className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-[var(--brand)]">
-                  N/A
+                <span className="flex h-full w-full items-center justify-center text-sm font-semibold text-[var(--brand)]">
+                  {initials(form.name)}
                 </span>
               )}
             </div>
@@ -241,63 +253,84 @@ export default function TeamManager() {
           disabled={saving || uploading}
           className="rounded-xl bg-[var(--brand)] px-5 py-2.5 text-sm font-semibold text-[var(--brand-dark)] hover:brightness-105 disabled:opacity-50"
         >
-          {saving ? "Saving…" : form._id ? "Update member" : "Add member"}
+          {saving ? "Saving…" : form._id ? "Update profile" : "Add profile"}
         </button>
       </form>
 
-      <div className="rounded-[20px] border border-zinc-200 bg-white shadow-sm overflow-hidden">
+      <div>
         {loading ? (
-          <p className="p-6 text-sm text-zinc-500 animate-pulse">Loading team…</p>
+          <p className="text-sm text-zinc-500 animate-pulse">Loading profiles…</p>
         ) : members.length === 0 ? (
-          <p className="p-6 text-sm text-zinc-500">No team members yet.</p>
+          <p className="rounded-[20px] border border-zinc-200 bg-white p-6 text-sm text-zinc-500">
+            No team profiles yet. Add one above or run seed migration.
+          </p>
         ) : (
-          <ul className="divide-y divide-zinc-100">
-            {members.map((m) => (
-              <li
-                key={m._id}
-                className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-[var(--brand-dark)]">
-                    {m.image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={m.image}
-                        alt={m.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-[var(--brand)]">
-                        {(m.name || "?").slice(0, 2).toUpperCase()}
-                      </span>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold text-[var(--brand-dark)]">
-                      {m.name}
-                    </p>
-                    <p className="text-xs text-zinc-500">{m.designation}</p>
-                  </div>
+          <div className="space-y-8">
+            {byRole.map(({ role, list }) => (
+              <section key={role}>
+                <div className="mb-3 flex items-baseline justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-[var(--brand-dark)]">
+                    {role}
+                  </h3>
+                  <span className="text-xs text-zinc-400">{list.length}</span>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => editMember(m)}
-                    className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeMember(m._id)}
-                    className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </li>
+                <ul className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 xl:grid-cols-3">
+                  {list.map((m) => (
+                    <li
+                      key={m._id}
+                      className="flex flex-col overflow-hidden rounded-[20px] border border-zinc-200 bg-white shadow-sm"
+                    >
+                      <div className="relative aspect-[4/3] bg-[var(--brand-dark)]">
+                        {m.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={m.image}
+                            alt={m.name}
+                            className="absolute inset-0 h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-black/25 text-lg font-semibold text-[var(--brand)] ring-1 ring-[var(--brand)]/30">
+                              {initials(m.name)}
+                            </span>
+                            <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--brand)]/70">
+                              No photo yet
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-1 flex-col gap-3 p-4">
+                        <div>
+                          <p className="font-semibold text-[var(--brand-dark)]">
+                            {m.name}
+                          </p>
+                          <p className="mt-0.5 text-xs text-zinc-500">
+                            {m.designation}
+                          </p>
+                        </div>
+                        <div className="mt-auto flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => editMember(m)}
+                            className="flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                          >
+                            Edit profile
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeMember(m._id)}
+                            className="rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         )}
       </div>
     </div>

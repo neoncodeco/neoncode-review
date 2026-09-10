@@ -220,7 +220,7 @@ function MemberAvatar({ member, size = "md" }) {
 export default function ReviewForm() {
   const formId = useId();
   const [form, setForm] = useState(EMPTY_FORM);
-  const [roleFilter, setRoleFilter] = useState(null);
+  const [roleFilter, setRoleFilter] = useState("Designer");
   const [team, setTeam] = useState(buildSeedTeam);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(false);
@@ -249,16 +249,19 @@ export default function ReviewForm() {
     let alive = true;
     (async () => {
       try {
-        const res = await fetch("/api/review", { cache: "no-store" });
+        const res = await fetch("/api/review?scope=public", {
+          cache: "no-store",
+        });
         if (!res.ok) return;
         const data = await res.json();
         if (!alive || !Array.isArray(data)) return;
 
+        // Only approved ratings (API already filters) → auto average
         const map = {};
         for (const r of data) {
-          const key = r.designer;
+          const key = r.employeeId || r.designer;
           if (!key) continue;
-          if (!map[key]) map[key] = { sum: 0, count: 0 };
+          if (!map[key]) map[key] = { sum: 0, count: 0, name: r.designer };
           map[key].sum += Number(r.averageRating) || 0;
           map[key].count += 1;
         }
@@ -268,6 +271,7 @@ export default function ReviewForm() {
             average: (v.sum / v.count).toFixed(1),
             count: v.count,
           };
+          if (v.name) next[v.name] = next[key];
         }
         setStats(next);
       } catch {
@@ -280,7 +284,7 @@ export default function ReviewForm() {
   }, [submitted]);
 
   const filteredMembers = useMemo(() => {
-    if (!roleFilter) return team;
+    if (!roleFilter) return [];
     return team.filter((m) => m.designation === roleFilter);
   }, [roleFilter, team]);
 
@@ -351,13 +355,25 @@ export default function ReviewForm() {
       if (!res.ok) throw new Error(data.message);
 
       setSubmitted({ ...form });
-      setForm(EMPTY_FORM);
-      setRoleFilter(null);
     } catch (err) {
       setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
+  };
+
+  const startAnotherReview = () => {
+    setForm({
+      ...EMPTY_FORM,
+      // Keep client details — only pick another member + ratings
+      name: submitted?.name || "",
+      phone: submitted?.phone || "",
+      businessName: submitted?.businessName || "",
+    });
+    setRoleFilter("Designer");
+    setSubmitted(null);
+    setError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   if (submitted) {
@@ -369,17 +385,17 @@ export default function ReviewForm() {
       };
 
     return (
-      <div className="review-shell review-fade-in w-full min-w-0 max-w-[640px] mx-auto overflow-hidden rounded-[22px] border border-zinc-200/80 bg-white text-left shadow-[0_20px_50px_-24px_rgba(10,20,10,0.25)]">
+      <div className="review-shell review-fade-in w-full min-w-0 max-w-[640px] mx-auto overflow-hidden rounded-[16px] border border-zinc-200/80 bg-white text-left shadow-[0_20px_50px_-24px_rgba(10,20,10,0.25)] sm:rounded-[22px]">
         <div className="h-1.5 w-full bg-[var(--brand)]" />
-        <div className="p-6 sm:p-8">
-          <div className="mb-7 flex flex-col items-center text-center">
-            <div className="review-success-pop mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--brand)] text-[var(--brand-dark)] shadow-[0_10px_28px_-10px_rgba(198,255,0,0.7)]">
+        <div className="p-4 sm:p-6 md:p-8">
+          <div className="mb-6 flex flex-col items-center text-center sm:mb-7">
+            <div className="review-success-pop mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--brand)] text-[var(--brand-dark)] shadow-[0_10px_28px_-10px_rgba(198,255,0,0.7)] sm:h-16 sm:w-16">
               <Icon name="check" className="h-7 w-7" />
             </div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--brand-dark)]/70">
               Confirmed
             </p>
-            <h2 className="mt-1.5 text-[1.65rem] font-semibold tracking-tight text-[var(--brand-dark)]">
+            <h2 className="mt-1.5 text-[1.35rem] font-semibold tracking-tight text-[var(--brand-dark)] sm:text-[1.65rem]">
               Review submitted
             </h2>
             <p className="mt-2 max-w-sm text-[14px] leading-relaxed text-zinc-500">
@@ -387,7 +403,7 @@ export default function ReviewForm() {
               <span className="font-medium text-zinc-800">{submitted.name}</span>.
               Feedback for{" "}
               <span className="font-medium text-zinc-800">{submitted.designer}</span>{" "}
-              is saved.
+              is waiting for admin approval before it counts on their score.
             </p>
           </div>
 
@@ -434,14 +450,14 @@ export default function ReviewForm() {
 
           <button
             type="button"
-            onClick={() => {
-              setSubmitted(null);
-              setError("");
-            }}
+            onClick={startAnotherReview}
             className="review-btn review-btn-primary mt-6 w-full rounded-[12px] py-[14px] text-sm font-semibold"
           >
-            Submit another review
+            Add another review
           </button>
+          <p className="mt-2 text-center text-[12px] text-zinc-400">
+            Your name &amp; business stay filled — just pick another member
+          </p>
         </div>
       </div>
     );
@@ -450,20 +466,20 @@ export default function ReviewForm() {
   return (
     <form
       onSubmit={submitReview}
-      className="review-shell review-fade-in w-full min-w-0 max-w-[640px] mx-auto overflow-hidden rounded-[22px] border border-zinc-200/80 bg-white text-left shadow-[0_20px_50px_-24px_rgba(10,20,10,0.25)]"
+      className="review-shell review-fade-in w-full min-w-0 max-w-[640px] mx-auto overflow-hidden rounded-[16px] border border-zinc-200/80 bg-white text-left shadow-[0_20px_50px_-24px_rgba(10,20,10,0.25)] sm:rounded-[22px]"
     >
       <div className="h-1.5 w-full bg-[var(--brand)]" />
 
-      <div className="p-5 sm:p-8">
-        <header className="review-stagger mb-8" style={{ "--d": "0ms" }}>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-muted)] px-3 py-[5px] text-[10.5px] font-semibold uppercase tracking-[0.1em] text-[var(--brand-dark)] ring-1 ring-[var(--brand)]/30">
+      <div className="p-4 sm:p-8">
+        <header className="review-stagger mb-6 sm:mb-8" style={{ "--d": "0ms" }}>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--brand-muted)] px-2.5 py-[5px] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--brand-dark)] ring-1 ring-[var(--brand)]/30 sm:px-3 sm:text-[10.5px]">
             <Icon name="star" className="h-3 w-3" />
             Your feedback matters
           </span>
-          <h1 className="mt-4 text-[1.75rem] sm:text-[2rem] font-semibold tracking-[-0.03em] text-[var(--brand-dark)] leading-tight">
+          <h1 className="mt-3 text-[1.45rem] font-semibold tracking-[-0.03em] text-[var(--brand-dark)] leading-tight sm:mt-4 sm:text-[1.75rem] md:text-[2rem]">
             Team Performance Review
           </h1>
-          <p className="mt-2.5 max-w-[32rem] text-[14px] leading-[1.65] text-zinc-500">
+          <p className="mt-2 max-w-[32rem] text-[13px] leading-[1.65] text-zinc-500 sm:mt-2.5 sm:text-[14px]">
             Rate Designers, Sales Executives & Project Managers on the
             NeonCode team. Pick a person, score their work, and help us improve.
           </p>
@@ -570,15 +586,15 @@ export default function ReviewForm() {
             </div>
           </div>
 
-          <div className="mb-3 flex flex-wrap gap-1.5">
+          <div className="mb-3 nc-scroll-x sm:flex-wrap sm:overflow-visible">
             {TEAM_ROLES.map((role) => {
               const active = roleFilter === role;
               return (
                 <button
                   key={role}
                   type="button"
-                  onClick={() => setRoleFilter(active ? null : role)}
-                  className={`rounded-full px-3 py-1.5 text-[12px] font-semibold transition ${
+                  onClick={() => setRoleFilter(active ? "Designer" : role)}
+                  className={`nc-tab-chip rounded-full px-3 py-2 text-[11px] font-semibold transition sm:py-1.5 sm:text-[12px] ${
                     active
                       ? "bg-[var(--brand-dark)] text-[var(--brand)]"
                       : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
@@ -590,15 +606,17 @@ export default function ReviewForm() {
             })}
           </div>
 
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2.5 min-[420px]:grid-cols-2">
             {filteredMembers.length === 0 ? (
               <p className="col-span-full rounded-[14px] border border-dashed border-zinc-200 px-4 py-6 text-center text-sm text-zinc-400">
-                No members in this role yet. Admin can add them from dashboard.
+                {roleFilter
+                  ? "No members in this role yet. Admin can add them from dashboard."
+                  : "Pick a role above to see team members"}
               </p>
             ) : (
               filteredMembers.map((member) => {
               const selected = form.employeeId === member.id;
-              const stat = stats[member.name];
+              const stat = stats[member.id] || stats[member.name];
               return (
                 <button
                   key={member.id || member._id || member.name}
@@ -806,7 +824,7 @@ function RatingRow({ formId, category, value, onSelect }) {
       <div
         role="radiogroup"
         aria-labelledby={`${groupId}-label`}
-        className="mt-3 grid w-full grid-cols-5 gap-1.5 sm:grid-cols-10 sm:gap-1"
+        className="mt-3 grid w-full grid-cols-5 gap-1.5 min-[480px]:grid-cols-10 min-[480px]:gap-1"
       >
         {[...Array(10)].map((_, i) => {
           const n = i + 1;
@@ -819,7 +837,7 @@ function RatingRow({ formId, category, value, onSelect }) {
               aria-checked={selected}
               aria-label={`${category.label} rating ${n}`}
               onClick={() => onSelect(n)}
-              className={`rating-btn flex aspect-square w-full max-h-10 items-center justify-center rounded-full text-xs font-semibold tabular-nums transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-1 ${
+              className={`rating-btn flex aspect-square w-full min-h-[40px] max-h-11 items-center justify-center rounded-full text-xs font-semibold tabular-nums transition-all duration-150 touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-1 sm:min-h-0 sm:max-h-10 ${
                 selected
                   ? "bg-[var(--brand-dark)] text-[var(--brand)] shadow-sm"
                   : "border border-zinc-200 bg-white text-zinc-600 hover:border-[var(--brand)] hover:bg-[var(--brand-muted)] hover:text-[var(--brand-dark)] active:scale-95"

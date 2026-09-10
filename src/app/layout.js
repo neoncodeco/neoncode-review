@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import { AuthProvider } from "@/lib/auth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,8 +14,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Designer Review | NeonCode",
-  description: "Share feedback on NeonCode designers — behavior, quality, communication, and time management.",
+  title: "Team Review | NeonCode",
+  description:
+    "Share feedback on NeonCode team members — designers, sales executives, and project managers.",
+  icons: {
+    icon: [{ url: "/image.png", type: "image/png" }],
+    shortcut: "/image.png",
+    apple: "/image.png",
+  },
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }) {
@@ -23,8 +37,10 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Navbar />
-        {children}
+        <AuthProvider>
+          <Navbar />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

@@ -1,12 +1,18 @@
 "use client";
-import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
+import {
+  AuthShell,
+  AuthField,
+  AuthSubmit,
+  AuthFooter,
+} from "@/components/AuthUI";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { refresh } = useAuth();
   const [form, setForm] = useState({
     email: "",
     password: "",
@@ -23,62 +29,69 @@ export default function LoginPage() {
     setError("");
 
     try {
-      await signInWithEmailAndPassword(
-        auth,
-        form.email,
-        form.password
-      );
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Login failed");
+      await refresh();
       router.push("/dashboard");
     } catch (err) {
-      setError("Invalid email or password");
+      setError(err.message || "Invalid email or password");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4">
-      <form
-        onSubmit={handleLogin}
-        className="w-full max-w-md rounded-2xl border p-6 shadow-lg"
-      >
-        <h1 className="text-2xl font-bold text-center mb-6">
-          Login
-        </h1>
-
-        <input
+    <AuthShell
+      badge="Staff access"
+      title="Welcome back"
+      subtitle="Sign in with your NeonCode admin email and password."
+    >
+      <form onSubmit={handleLogin} className="space-y-3.5">
+        <AuthField
+          label="Email"
+          icon="mail"
           name="email"
           type="email"
-          placeholder="Email"
+          autoComplete="email"
+          placeholder="you@neoncode.com"
           value={form.email}
           onChange={handleChange}
           required
-          className="w-full mb-3 rounded-lg border px-4 py-2"
         />
-
-        <input
+        <AuthField
+          label="Password"
+          icon="lock"
           name="password"
           type="password"
-          placeholder="Password"
+          autoComplete="current-password"
+          placeholder="Enter your password"
           value={form.password}
           onChange={handleChange}
           required
-          className="w-full mb-4 rounded-lg border px-4 py-2"
         />
 
-        <button
-          disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
-        >
-          {loading ? "Logging in..." : "Login"}
-        </button>
-
-        {error && (
-          <p className="text-red-500 text-sm mt-3 text-center">
+        {error ? (
+          <p
+            role="alert"
+            className="rounded-[12px] border border-red-200 bg-red-50 px-3.5 py-2.5 text-center text-sm text-red-600"
+          >
             {error}
           </p>
-        )}
+        ) : null}
+
+        <AuthSubmit loading={loading}>Sign in to dashboard</AuthSubmit>
       </form>
-    </main>
+
+      <AuthFooter
+        text="New admin?"
+        href="/register"
+        linkLabel="Register with master key"
+      />
+    </AuthShell>
   );
 }

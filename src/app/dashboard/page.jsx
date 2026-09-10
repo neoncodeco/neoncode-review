@@ -1,159 +1,138 @@
 "use client";
+
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth";
+import TeamManager from "@/components/TeamManager";
+import {
+  AnalyticsPanel,
+  ReviewsModerator,
+  ManualRatingPanel,
+  UserCreatePanel,
+} from "@/components/AdminPanels";
+
+const TABS = [
+  { id: "overview", label: "Analytics" },
+  { id: "reviews", label: "Approvals" },
+  { id: "manual", label: "Manual rating" },
+  { id: "team", label: "Profiles" },
+  { id: "users", label: "Users" },
+];
 
 export default function DashboardPage() {
-  const [reviews, setReviews] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const [tab, setTab] = useState("overview");
+  const [members, setMembers] = useState([]);
 
- useEffect(() => {
-  const loadReviews = async () => {
-    try {
-      const res = await fetch("/api/review", { cache: "no-store" });
-
-      if (!res.ok) {
-        throw new Error("API failed");
-      }
-
-      const data = await res.json();
-      setReviews(data);
-    } catch (err) {
-      console.error("Dashboard fetch error:", err);
-      setReviews([]); // fallback
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      router.replace("/admin");
+      return;
     }
-  };
+    if (user.role !== "admin") {
+      return;
+    }
+  }, [authLoading, user, router]);
 
-  loadReviews();
-}, []);
+  useEffect(() => {
+    if (!user?.uid || user.role !== "admin") return;
+    (async () => {
+      try {
+        const res = await fetch("/api/team", { cache: "no-store" });
+        const data = await res.json();
+        if (res.ok && Array.isArray(data)) setMembers(data);
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [user, tab]);
 
-
-  if (loading) {
+  if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center font-black animate-pulse text-indigo-600 uppercase tracking-widest">
-        Loading dashboard...
+      <div className="min-h-[calc(100vh-65px)] flex items-center justify-center bg-[var(--background)]">
+        <p className="text-sm font-medium text-[var(--brand-dark)] animate-pulse">
+          Loading dashboard...
+        </p>
       </div>
     );
   }
 
-  return (
-    <main className="min-h-screen bg-gray-50 dark:bg-neutral-900 p-4 sm:p-8 transition-colors">
-      <div className="max-w-7xl mx-auto">
+  if (!user) return null;
 
-        {/* ================= HEADER ================= */}
-        <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-gray-900 dark:text-gray-100">
-            📊 Designer <span className="text-indigo-600">Reviews</span>
+  if (user.role !== "admin") {
+    return (
+      <main className="min-h-[calc(100vh-65px)] bg-[var(--background)] p-6 flex items-center justify-center">
+        <div className="max-w-md rounded-[24px] border border-amber-200 bg-white p-6 text-center shadow-sm">
+          <h1 className="text-lg font-semibold text-[var(--brand-dark)]">
+            Admin access required
           </h1>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">
-            Feedback Management
+          <p className="mt-2 text-sm text-zinc-600">
+            This account is not an admin. Register with the master key.
           </p>
+          <a
+            href="/register"
+            className="mt-4 inline-block rounded-xl bg-[var(--brand)] px-4 py-2 text-sm font-semibold text-[var(--brand-dark)]"
+          >
+            Register with master key
+          </a>
         </div>
+      </main>
+    );
+  }
 
-        {reviews.length === 0 ? (
-          <div className="p-10 text-center bg-white dark:bg-neutral-800 rounded-3xl border-2 border-dashed border-gray-200 dark:border-neutral-700">
-            <p className="opacity-70 font-bold uppercase text-sm text-gray-700 dark:text-gray-300">
-              No reviews found
+  const adminUid = user.uid;
+  const adminName = user.name || user.email || "Admin";
+
+  return (
+    <main className="min-h-[calc(100vh-57px)] overflow-x-hidden bg-[var(--background)] p-3 pb-10 sm:min-h-[calc(100vh-65px)] sm:p-6 sm:pb-12 lg:p-8">
+      <div className="mx-auto w-full max-w-7xl min-w-0">
+        <div className="mb-5 flex flex-col gap-4 sm:mb-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-zinc-400 sm:text-xs">
+              Signed in as {adminName}
+            </p>
+            <h1 className="text-xl font-semibold tracking-tight text-zinc-900 sm:text-2xl lg:text-3xl">
+              NeonCode <span className="text-[var(--brand-dark)]">Admin</span>
+            </h1>
+            <p className="mt-1 text-xs text-zinc-500 sm:text-sm">
+              Analytics, approve ratings, profiles, manual scores &amp; users.
             </p>
           </div>
-        ) : (
-          <>
-            {/* ================= DESKTOP TABLE ================= */}
-            <div className="hidden md:block overflow-hidden rounded-[24px] border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 shadow-sm">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-900 dark:bg-black text-white text-[10px] uppercase tracking-widest">
-                  <tr>
-                    <th className="p-4">Designer</th>
-                    <th className="p-4">Behavior</th>
-                    <th className="p-4">Quality</th>
-                    <th className="p-4">Communication</th>
-                    <th className="p-4">Time</th>
-                    <th className="p-4">Average</th>
-                    <th className="p-4">Phone</th>
-                    <th className="p-4">Comment</th>
-                    <th className="p-4 text-right">Date</th>
-                  </tr>
-                </thead>
 
-                <tbody className="divide-y divide-gray-100 dark:divide-neutral-700">
-                  {reviews.map((r) => (
-                    <tr
-                      key={r._id}
-                      className="hover:bg-indigo-50/40 dark:hover:bg-neutral-700/40 transition-colors"
-                    >
-                      <td className="p-4 font-black uppercase text-gray-900 dark:text-gray-100">
-                        {r.designer}
-                      </td>
+          <div className="nc-scroll-x w-full max-w-full rounded-full bg-white p-1 ring-1 ring-zinc-200 lg:w-fit">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={`nc-tab-chip rounded-full px-3 py-2 text-[11px] font-semibold transition sm:px-3.5 sm:text-xs ${
+                  tab === t.id
+                    ? "bg-[var(--brand-dark)] text-[var(--brand)]"
+                    : "text-zinc-600 hover:bg-zinc-50"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
-                      <td className="p-4 font-bold">{r.behavior}</td>
-                      <td className="p-4 font-bold">{r.quality}</td>
-                      <td className="p-4 font-bold">{r.communication}</td>
-                      <td className="p-4 font-bold">{r.timeManagement}</td>
-
-                      <td className="p-4">
-                        <span className="px-3 py-1 rounded-full text-[10px] font-black bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-200">
-                          ⭐ {r.averageRating} ({r.averageLabel})
-                        </span>
-                      </td>
-
-                      <td className="p-4 font-mono text-gray-600 dark:text-gray-300">
-                        {r.phone}
-                      </td>
-
-                      <td className="p-4 italic text-gray-600 dark:text-gray-300 max-w-xs truncate">
-                        {r.comment || "—"}
-                      </td>
-
-                      <td className="p-4 text-right text-[10px] font-bold text-gray-400">
-                        {new Date(r.createdAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* ================= MOBILE VIEW ================= */}
-            <div className="grid grid-cols-1 gap-4 md:hidden">
-              {reviews.map((r) => (
-                <div
-                  key={r._id}
-                  className="bg-white dark:bg-neutral-800 p-5 rounded-[24px] border border-gray-200 dark:border-neutral-700 shadow-sm transition-colors"
-                >
-                  <div className="flex justify-between mb-3">
-                    <div>
-                      <h3 className="font-black uppercase text-gray-900 dark:text-gray-100">
-                        {r.designer}
-                      </h3>
-                      <p className="text-[11px] font-bold text-indigo-500">
-                        {r.phone}
-                      </p>
-                    </div>
-                    <span className="bg-indigo-600 text-white text-xs font-black px-3 py-1 rounded-xl">
-                      ⭐ {r.averageRating}
-                    </span>
-                  </div>
-
-                  {/* Rating grid */}
-                  <div className="grid grid-cols-2 gap-2 text-xs font-bold mb-3 text-gray-700 dark:text-gray-300">
-                    <p>🧑‍💼 Behavior: {r.behavior}</p>
-                    <p>🎯 Quality: {r.quality}</p>
-                    <p>💬 Communication: {r.communication}</p>
-                    <p>⏱ Time: {r.timeManagement}</p>
-                  </div>
-
-                  <p className="italic text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-neutral-700 p-3 rounded-xl">
-                    "{r.comment || "No comment"}"
-                  </p>
-
-                  <p className="mt-3 text-[10px] text-right font-bold text-gray-400">
-                    {new Date(r.createdAt).toLocaleString()}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+        <div className="min-w-0">
+          {tab === "overview" && (
+            <AnalyticsPanel
+              adminUid={adminUid}
+              onGotoReviews={() => setTab("reviews")}
+            />
+          )}
+          {tab === "reviews" && <ReviewsModerator adminUid={adminUid} />}
+          {tab === "manual" && (
+            <ManualRatingPanel adminUid={adminUid} members={members} />
+          )}
+          {tab === "team" && <TeamManager />}
+          {tab === "users" && <UserCreatePanel adminUid={adminUid} />}
+        </div>
       </div>
     </main>
   );

@@ -85,7 +85,7 @@ export default function RegisterPage() {
 
         <button
           disabled={loading}
-          className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
+          className="w-full bg-[var(--brand)] text-[var(--brand-dark)] py-2 rounded-lg font-semibold hover:brightness-105 disabled:opacity-50"
         >
           {loading ? "Creating..." : "Create Account"}
         </button>
@@ -95,6 +95,13 @@ export default function RegisterPage() {
             {error}
           </p>
         )}
+
+        <p className="mt-4 text-center text-xs text-zinc-400">
+          Admin panel ·{" "}
+          <a href="/admin" className="text-blue-600 hover:underline">
+            /admin
+          </a>
+        </p>
       </form>
     </main>
   );

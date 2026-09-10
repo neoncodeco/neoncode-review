@@ -17,21 +17,23 @@ const ratingLabel = (r) => {
 export async function POST(req) {
   try {
     const body = await req.json();
-    const {
-      name,
-      phone,
-      designer,
-      behavior,
-      quality,
-      communication,
-      timeManagement,
-      comment,
-    } = body;
+    const name = String(body.name || "").trim();
+    const phone = String(body.phone || "").trim();
+    const businessName = String(body.businessName || "").trim();
+    const designer = String(body.designer || "").trim();
+    const designation = String(body.designation || "").trim();
+    const employeeId = String(body.employeeId || "").trim();
+    const comment = String(body.comment || "").trim();
+    const behavior = Number(body.behavior);
+    const quality = Number(body.quality);
+    const communication = Number(body.communication);
+    const timeManagement = Number(body.timeManagement);
 
     // 🔒 validation
     if (
       !name ||
       !phone ||
+      !businessName ||
       !designer ||
       behavior < 1 ||
       behavior > 10 ||
@@ -51,13 +53,16 @@ export async function POST(req) {
     const avgRating =
       (behavior + quality + communication + timeManagement) / 4;
 
-    const client = await clientPromise ;
+    const client = await clientPromise;
     const db = client.db("designerReviewDB");
 
-    await db.collection("reviews").insertOne({
+    const doc = {
       name,
       phone,
+      businessName,
       designer,
+      designation,
+      employeeId,
 
       behavior,
       behaviorLabel: ratingLabel(behavior),
@@ -76,15 +81,21 @@ export async function POST(req) {
 
       comment,
       createdAt: new Date(),
-    });
+    };
+
+    const result = await db.collection("reviews").insertOne(doc);
 
     return NextResponse.json(
-      { message: "Review saved successfully" },
+      {
+        message: "Review saved successfully",
+        id: result.insertedId.toString(),
+      },
       { status: 201 }
     );
   } catch (error) {
+    console.error("POST /api/review failed:", error);
     return NextResponse.json(
-      { message: "Server error" },
+      { message: error?.message || "Server error" },
       { status: 500 }
     );
   }
@@ -101,8 +112,17 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .toArray();
 
-    return NextResponse.json(reviews);
+    const serialized = reviews.map((r) => ({
+      ...r,
+      _id: r._id?.toString?.() ?? r._id,
+      createdAt: r.createdAt
+        ? new Date(r.createdAt).toISOString()
+        : null,
+    }));
+
+    return NextResponse.json(serialized);
   } catch (error) {
+    console.error("GET /api/review failed:", error);
     return NextResponse.json(
       { message: "Failed to fetch reviews" },
       { status: 500 }
